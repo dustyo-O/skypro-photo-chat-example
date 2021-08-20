@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=<device-width>, initial-scale=1.0'>
+  <title>Document</title>
+  <style>
+    .picture {
+      display: block;
+    }
+    .hidden {
+      position: absolute;
+
+      top: -1000px;
+    }
+  </style>
+</head>
+<body>
+  <canvas class="canvas hidden"></canvas>
+  <img class="photo hidden"/>
+  <video class="video hidden"></video>
+  <div class="chat">
+
+  </div>
+  <button class="send">Отправить фото</button>
+  <script>
+    const camera_button = document.querySelector('.send');
+    const video = document.querySelector('.video');
+    const canvas = document.querySelector('.canvas');
+    const photo = document.querySelector('.photo');
+    const chatElem = document.querySelector('.chat');
+
+    const ws = new WebSocket('wss://42fbb9034faf.ngrok.io/ws');
+
+    function makePicture(src) {
+      const pic = document.createElement('img');
+
+      pic.src = src;
+      pic.className = 'picture';
+
+      return pic;
+    }
+
+    ws.addEventListener('message', (e) => {
+      console.log(e);
+
+      const { chat, message } = JSON.parse(e.data);
+
+      if (chat) {
+        console.log('chat');
+        console.log(chat);
+
+        chat.forEach(message => chatElem.appendChild(makePicture(message)));
+      }
+
+      if (message) {
+        console.log('message');
+        console.log(message);
+        chatElem.appendChild(makePicture(message));
+      }
+    });
+
+    function sendMessage(data) {
+      ws.send(data);
+    }
+
+    camera_button.addEventListener('click', async () => {
+      console.log('click');
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+
+      video.addEventListener('canplay', () => {
+        setTimeout(() => {
+          canvas.style.width = video.offsetWidth + 'px';
+          canvas.style.height = video.offsetHeight + 'px';
+          var ctx = canvas.getContext('2d');
+
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+          const data = canvas.toDataURL();
+          photo.src = data;
+          console.log(data);
+
+          sendMessage(data);
+        }, 1000);
+      });
+
+
+      video.srcObject = stream;
+      video.play();
+    });
+  </script>
+</body>
+</html>

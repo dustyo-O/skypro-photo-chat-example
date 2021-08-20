@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=<device-width>, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    .picture {
+      max-width: 200px;
+      min-height: 400px;
+      display: block;
+    }
+    .hidden {
+      position: absolute;
+
+      top: -1000px;
+    }
+  </style>
+</head>
+<body>
+  <canvas class="canvas hidden"></canvas>
+  <img class="photo hidden"/>
+  <video class="video hidden"></video>
+  <div class="chat">
+
+  </div>
+  <button class="send">Отправить фото</button>
+  <script>
+    const camera_button = document.querySelector(".send");
+    const video = document.querySelector(".video");
+    const canvas = document.querySelector(".canvas");
+    const photo = document.querySelector(".photo");
+    const chatElem = document.querySelector('.chat');
+
+    const ws = new WebSocket('wss://37d01cd3595b.ngrok.io/ws');
+
+    function sendMessage(message) {
+      if (ws.readyState !== WebSocket.OPEN) {
+        return;
+      }
+
+      ws.send(message);
+    }
+
+    function makePicture(src) {
+      const pic = document.createElement('img');
+      pic.className = 'picture';
+
+      pic.src = src;
+
+      return pic;
+    }
+
+    function onMessage(e) {
+      console.log(e);
+
+      const m = JSON.parse(e.data);
+
+      const { chat, message } = m;
+
+      if (chat) {
+        chat.forEach(data => chatElem.appendChild(makePicture(data)));
+      }
+
+      if (message) {
+        chatElem.appendChild(makePicture(message))
+      }
+    }
+
+    ws.addEventListener('message', onMessage);
+    ws.addEventListener('open', (event) => {
+      console.log('open');
+
+      console.log(event);
+    });
+    ws.addEventListener('close', (event) => {
+      console.log('close');
+
+      console.log(event);
+    });
+    ws.addEventListener('error', (event) => {
+      console.log('error');
+
+      console.log(event);
+    });
+
+    camera_button.addEventListener('click', async function() {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { exact: 'environment' } }, audio: false });
+
+      video.addEventListener('canplay', () => {
+        setTimeout(() => {
+          canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+          const image_data_url = canvas.toDataURL('image/jpeg');
+
+          // data url of the image
+          console.log(image_data_url);
+          photo.src = image_data_url;
+
+          sendMessage(image_data_url);
+
+          video.pause();
+        }, 1000);
+      });
+
+      video.srcObject = stream;
+      video.play();
+    });
+
+  </script>
+</body>
+</html>
